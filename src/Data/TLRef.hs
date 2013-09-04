@@ -8,23 +8,25 @@ import Control.Applicative
 -- | A variable that stores at most one value per thread
 newtype TLRef a = TLRef (IORef (M.Map ThreadId (IORef a)))
 
--- | Create a new thread local reference.
+-- | Create a new thread local reference
 newTLRef :: IO (TLRef a)
 newTLRef = TLRef <$> newIORef M.empty
 
+-- | Write a value to the current thread's variable
 writeTLRef :: TLRef a -> a -> IO ()
 writeTLRef (TLRef mapRef) val = do
-	tid <- myThreadId
-	tlmap <- readIORef mapRef
-	case M.lookup tid tlmap of
-		Nothing -> do
-			ref <- newIORef val
-			atomicModifyIORef' mapRef (\tlmap' -> (M.insert tid ref tlmap', ()))
-		Just ref -> writeIORef ref val
+    tid <- myThreadId
+    tlmap <- readIORef mapRef
+    case M.lookup tid tlmap of
+        Nothing -> do
+            ref <- newIORef val
+            atomicModifyIORef' mapRef (\tlmap' -> (M.insert tid ref tlmap', ()))
+        Just ref -> writeIORef ref val
 
+-- | Read the current thread's value in a variable
 readTLRef :: TLRef a -> IO (Maybe a)
 readTLRef (TLRef mapRef) = do
-	mref <- M.lookup <$> myThreadId <*> readIORef mapRef
-	case mref of
-		Nothing -> return Nothing
-		Just ref -> Just <$> readIORef ref
+    mref <- M.lookup <$> myThreadId <*> readIORef mapRef
+    case mref of
+        Nothing -> return Nothing
+        Just ref -> Just <$> readIORef ref
